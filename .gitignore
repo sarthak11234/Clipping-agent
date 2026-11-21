@@ -25,3 +25,9 @@ docs/youtube-provider-registry*.json
 
 # Local agent checkouts
 .claude/worktrees/
+
+# Local self-host runtime and scratch scripts
+data/
+run/
+testdata/
+frontend/smoke-local.mjs

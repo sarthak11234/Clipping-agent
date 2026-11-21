@@ -169,11 +169,25 @@ class Config:
         self.queued_task_timeout_seconds = int(
             os.getenv("QUEUED_TASK_TIMEOUT_SECONDS", "180")
         )
+        # ARQ hard-kills one video job after this long. A six-hour source can
+        # spend an hour in Whisper and another in windowed analysis, so the
+        # limit is configurable for long videos.
+        self.video_job_timeout_seconds = max(
+            1, self._get_int_env("VIDEO_JOB_TIMEOUT_SECONDS", 3 * 60 * 60)
+        )
         # Fail-safe: processing tasks whose worker died mid-run should not stay
-        # "processing" forever. Default comfortably exceeds arq's job_timeout so
-        # a legitimately long job is never falsely swept into "error".
-        self.processing_task_timeout_seconds = int(
-            os.getenv("PROCESSING_TASK_TIMEOUT_SECONDS", "14400")
+        # "processing" forever. Keep this above the worker's own job timeout so
+        # a legitimately long job is never swept into "error".
+        self.processing_task_timeout_seconds = max(
+            self.video_job_timeout_seconds + 3600,
+            self._get_int_env("PROCESSING_TASK_TIMEOUT_SECONDS", 4 * 60 * 60),
+        )
+        # Wall-clock budget for all transcript-analysis windows together.
+        # Long sources are split into overlapping 12-minute windows, so the
+        # default 30 minutes can skip the tail of a multi-hour stream.
+        self.transcript_analysis_total_timeout_seconds = max(
+            60,
+            self._get_int_env("TRANSCRIPT_ANALYSIS_TOTAL_TIMEOUT_SECONDS", 30 * 60),
         )
         # One account can hold at most this many video renders at once. The
         # worker has a handful of CPU slots, and one render can run for hours,

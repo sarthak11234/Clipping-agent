@@ -156,6 +156,9 @@ These settings affect clip generation speed, throughput, and defaults.
 | `ASSEMBLY_AI_REQUEST_TIMEOUT_SECONDS` | `60` | Per-request upload/submit timeout (5–300). Transient upload failures retry up to 3 times; the paid submission is attempted once |
 | `WHISPER_MODEL_SIZE` | `medium` in `.env.example` | Whisper model size when Whisper is used locally |
 | `QUEUED_TASK_TIMEOUT_SECONDS` | `180` | Marks stale queued tasks as failed instead of leaving them stuck forever |
+| `VIDEO_JOB_TIMEOUT_SECONDS` | `10800` | Hard wall-clock limit for one video job. Raise it for multi-hour sources; `PROCESSING_TASK_TIMEOUT_SECONDS` is automatically kept at least one hour above this value |
+| `PROCESSING_TASK_TIMEOUT_SECONDS` | `14400` | Marks a processing task as stalled only after this many seconds. Must stay above the worker job timeout so a legitimate long render is not failed early |
+| `TRANSCRIPT_ANALYSIS_TOTAL_TIMEOUT_SECONDS` | `1800` | Wall-clock budget for all transcript-analysis windows together. A six-hour source can need an hour or more on a local model |
 | `VIDEO_JOB_USER_CONCURRENCY` | `1` | Long video renders one account may run at once. Extra videos from that account wait without taking a worker slot. `1` is the default because a render can occupy a slot for hours; set `2` to allow two at once |
 | `VIDEO_JOB_DEFER_SECONDS` | `20` | How long a video over the per-account cap waits before a worker checks again (5–300). The waiting job is not charged again |
 | `QUEUE_DELAY_ALERT_SECONDS` | `600` | Pickup delay, from enqueue until a worker starts the job, that reports `queue_delay_exceeded` to PostHog |

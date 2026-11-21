@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import re
 import socket
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -17,6 +18,16 @@ from urllib.parse import urlsplit
 MAX_URL_LENGTH = 2048
 DISCORD_HOSTS = {"discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com"}
 _BLOCKED_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".home", ".corp", ".intranet")
+# Numeric, hex, octal and short IPv4 forms are interpreted differently by
+# resolvers: macOS reads 0177.0.0.1 as 177.0.0.1, glibc reads it as the octal
+# 127.0.0.1. Reject every numeric-looking host that is not a dotted-quad
+# literal so the public/private decision cannot change with the OS.
+_LEGACY_IPV4_PART = re.compile(r"(?:0[xX][0-9a-fA-F]+|[0-9]+)")
+
+
+def _is_legacy_ipv4_host(host: str) -> bool:
+    parts = host.split(".")
+    return 2 <= len(parts) <= 4 and all(_LEGACY_IPV4_PART.fullmatch(part) for part in parts)
 
 
 class UnsafeWebhookUrl(ValueError):
@@ -73,6 +84,8 @@ def validate_webhook_url(url: str, kind: str) -> WebhookTarget:
     if literal is not None:
         if not _address_is_public(literal):
             raise UnsafeWebhookUrl("url_private_address", "Webhook URLs must point to a public internet address.")
+    elif _is_legacy_ipv4_host(host):
+        raise UnsafeWebhookUrl("url_private_address", "Webhook URLs must point to a public internet address.")
     elif host == "localhost" or host.endswith(_BLOCKED_SUFFIXES) or "." not in host:
         raise UnsafeWebhookUrl("url_private_address", "Webhook URLs must point to a public internet address.")
 

@@ -221,6 +221,39 @@ async def test_unreadable_or_long_upload_uses_no_minutes(monkeypatch, creation, 
 
 
 @pytest.mark.asyncio
+async def test_six_hour_upload_is_accepted(monkeypatch, creation):
+    request, service, _queue, billing = creation
+    billing["max_upload_duration_seconds"] = 21600
+    request.json.return_value = {"source": {"url": "upload://six-hours.mp4"}}
+    probe = MagicMock(return_value=21599.0)
+    monkeypatch.setattr(tasks.VideoService, "probe_upload_duration", probe)
+
+    result = await tasks.create_task(request, db=None)
+
+    assert result["task_id"] == "task-1"
+    probe.assert_called_once()
+    assert service.create_task_with_source.await_args.kwargs["source_duration_seconds"] == 21599
+
+
+@pytest.mark.asyncio
+async def test_upload_over_six_hours_is_rejected(monkeypatch, creation):
+    request, service, queue, billing = creation
+    billing["max_upload_duration_seconds"] = 21600
+    request.json.return_value = {"source": {"url": "upload://too-long.mp4"}}
+    monkeypatch.setattr(
+        tasks.VideoService, "probe_upload_duration", MagicMock(return_value=21601.0)
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await tasks.create_task(request, db=None)
+
+    assert error.value.detail["code"] == "VIDEO_TOO_LONG"
+    assert "360 minutes" in error.value.detail["message"]
+    service.create_task_with_source.assert_not_awaited()
+    queue.enqueue_processing_job.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("preset", ["auto", "short", "medium", "long"])
 async def test_clip_length_is_persisted_and_queued(monkeypatch, creation, preset):
     request, _, queue, _ = creation

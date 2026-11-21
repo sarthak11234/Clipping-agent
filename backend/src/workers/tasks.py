@@ -369,7 +369,9 @@ class WorkerSettings:
 
     # Retry settings
     max_tries = 3  # Retry failed jobs up to 3 times
-    job_timeout = 10800  # 3 hour timeout for video processing
+    # Long videos can spend hours in Whisper and windowed analysis; keep this
+    # configurable through VIDEO_JOB_TIMEOUT_SECONDS.
+    job_timeout = config.video_job_timeout_seconds
 
     # Worker pool settings. Cron jobs live on CronWorkerSettings so they never
     # take one of these slots or pile up behind a long render.

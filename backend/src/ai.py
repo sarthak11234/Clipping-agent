@@ -506,6 +506,12 @@ _NATIVE_OUTPUT_ANTHROPIC_MODELS = frozenset({"claude-sonnet-5-5", "claude-haiku-
 
 def _uses_native_output(model_name: str) -> bool:
     provider, name = _split_llm_name(model_name)
+    # Self-hosted Ollama enforces the JSON schema through its grammar-constrained
+    # decoder (response_format), which avoids the tool-call retry history that
+    # local models can turn into invalid `content: null` assistant messages.
+    # Ollama Cloud does not enforce the schema, so it keeps tool output.
+    if provider == "ollama":
+        return not name.endswith("-cloud")
     return provider == "openrouter" or (
         provider == "anthropic" and name in _NATIVE_OUTPUT_ANTHROPIC_MODELS
     )
@@ -563,6 +569,9 @@ def _build_transcript_model(
             base_url=runtime_config.resolve_ollama_base_url(),
             api_key=runtime_config.ollama_api_key,
         ),
+        # Local thinking models otherwise spend the output budget on reasoning
+        # (and can return empty content). Ollama maps this to think=false.
+        settings={"extra_body": {"reasoning_effort": "none"}},
     )
 
 
@@ -1465,8 +1474,13 @@ async def _analyze_transcript_windows(
             return result.output
 
     tasks = [asyncio.create_task(run_window(window)) for window in windows]
+    total_timeout_seconds = getattr(
+        get_config(),
+        "transcript_analysis_total_timeout_seconds",
+        ANALYSIS_TOTAL_TIMEOUT_SECONDS,
+    )
     try:
-        _, pending = await asyncio.wait(tasks, timeout=ANALYSIS_TOTAL_TIMEOUT_SECONDS)
+        _, pending = await asyncio.wait(tasks, timeout=total_timeout_seconds)
     except asyncio.CancelledError:
         for task in tasks:
             task.cancel()
@@ -1477,7 +1491,7 @@ async def _analyze_transcript_windows(
             "%d of %d analysis windows exceeded the %ss budget",
             len(pending),
             len(windows),
-            ANALYSIS_TOTAL_TIMEOUT_SECONDS,
+            total_timeout_seconds,
         )
         for task in pending:
             task.cancel()

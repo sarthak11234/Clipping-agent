@@ -75,6 +75,7 @@ def build_agent(output_type: type[T], system_prompt: str, *, structural: bool) -
     config_error = ai._get_missing_llm_key_error(name, cfg)
     if config_error:
         raise RuntimeError(config_error)
+    provider, _ = ai._split_llm_name(name)
     native = ai._uses_native_output(name)
     agent = Agent(
         model=ai._build_transcript_model(cfg, name),
@@ -83,7 +84,13 @@ def build_agent(output_type: type[T], system_prompt: str, *, structural: bool) -
         retries={"output": 2},
         # An explicit request timeout: the SDK refuses a non-streaming request
         # this large without one. The shared runner bounds the wall clock anyway.
-        model_settings={"max_tokens": MAX_OUTPUT_TOKENS, "timeout": CALL_TIMEOUT_SECONDS} if native else None,
+        # Local Ollama has no hosted 8192-token output cap, and a 32000-token
+        # request can exceed its context window, so it keeps its own settings.
+        model_settings=(
+            {"max_tokens": MAX_OUTPUT_TOKENS, "timeout": CALL_TIMEOUT_SECONDS}
+            if native and provider != "ollama"
+            else None
+        ),
     )
     _agents[signature] = agent
     while len(_agents) > _AGENT_CACHE_SIZE:

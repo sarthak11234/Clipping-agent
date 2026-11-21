@@ -72,6 +72,17 @@ def test_windowing_handles_three_digit_minutes():
     assert windows[-1]["transcript"].splitlines()[-1].startswith("[109:50 - 110:00]")
 
 
+def test_six_hour_transcript_covers_the_whole_recording():
+    transcript = _transcript(6 * 60 * 60)
+
+    windows = ai.split_transcript_into_windows(transcript)
+
+    assert len(windows) == 36
+    assert windows[0]["start"] == 0
+    assert windows[-1]["end"] == 6 * 60 * 60
+    assert windows[-1]["transcript"].splitlines()[-1].startswith("[359:50 - 360:00]")
+
+
 def test_three_digit_minute_lines_are_parsed_and_grounded():
     transcript = "\n".join([
         "[100:00 - 100:20] Speaker A: First long sentence past the hundred minute mark.",

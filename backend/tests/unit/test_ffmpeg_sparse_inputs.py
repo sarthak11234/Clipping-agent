@@ -274,13 +274,15 @@ def _peak_rss_mb(monkeypatch):
     peaks = []
     launcher = (
         "import resource, subprocess, sys; r = subprocess.run(sys.argv[1:], capture_output=True); "
-        "sys.stderr.write('RSS %d' % resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss); "
+        # ru_maxrss is bytes on macOS and kilobytes on Linux.
+        "rss = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss; "
+        "sys.stderr.write('RSS %d' % (rss if sys.platform == 'darwin' else rss * 1024)); "
         "sys.exit(r.returncode)"
     )
 
     def measured(command, timeout=900):
         result = subprocess.run([sys.executable, "-I", "-c", launcher, *command], capture_output=True, text=True)
-        peaks.append(int(re.findall(r"RSS (\d+)", result.stderr)[-1]) / 1024)
+        peaks.append(int(re.findall(r"RSS (\d+)", result.stderr)[-1]) / (1024 * 1024))
         return SimpleNamespace(returncode=result.returncode, stdout="", stderr=result.stderr)
 
     monkeypatch.setattr(ffmpeg, "run_ffmpeg_command", measured)

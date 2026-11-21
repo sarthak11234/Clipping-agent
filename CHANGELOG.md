@@ -4,6 +4,11 @@ What changed in SupoClip for people using the product. Newest dates are first.
 
 Add a line here when a pull request changes something a user can see. Use **New**, **Improved**, **Fixed**, or **Under the hood**, describe the change in plain language, and link the pull request. Skip internal-only work, or fold it into one **Under the hood** line. Do not include customer names, email addresses, user IDs, or anything else private.
 
+## 2026-11-19
+
+- **Improved:** Self-hosted installs can allow much longer source videos. This install now accepts finished recordings up to six hours and raises the worker and transcript-analysis deadlines to match. Active livestreams are still not supported. See the [configuration docs](https://github.com/FujiwaraChoki/supoclip/blob/main/docs/configuration.md).
+- **Fixed:** Clip selection with a local Ollama model no longer fails when the model's tool call needs a retry. Local models now use Ollama's grammar-constrained JSON output, and thinking is turned off so the model does not spend its output budget on reasoning. See the [configuration docs](https://github.com/FujiwaraChoki/supoclip/blob/main/docs/configuration.md).
+
 ## 2026-11-18
 
 - **New:** After you subscribe or change plans, your plan card on Settings turns into a thank-you note with a colourful wave, and back into your upgraded plan when you click Done. ([#440](https://github.com/FujiwaraChoki/supoclip/pull/440))
